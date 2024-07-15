@@ -1,0 +1,32 @@
+% Load images
+imageFolder = 'path_to_your_image_folder';
+imds = imageDatastore(imageFolder, 'IncludeSubfolders', true, 'LabelSource', 'foldernames');
+
+% Resize images
+inputSize = [224 224]; % Example size
+imds.ReadFcn = @(loc)imresize(imread(loc), inputSize);
+
+% Split data
+[trainingSet, testSet] = splitEachLabel(imds, 0.8, 'randomized');
+
+% Load a pretrained network
+net = alexnet;
+
+% Extract features
+layer = 'fc7'; % Example layer
+trainingFeatures = activations(net, trainingSet, layer, 'OutputAs', 'rows');
+testFeatures = activations(net, testSet, layer, 'OutputAs', 'rows');
+
+% Get labels
+trainingLabels = trainingSet.Labels;
+testLabels = testSet.Labels;
+
+% Train an SVM classifier
+classifier = fitcecoc(trainingFeatures, trainingLabels);
+
+% Predict labels for the test set
+predictedLabels = predict(classifier, testFeatures);
+
+% Calculate accuracy
+accuracy = sum(predictedLabels == testLabels) / numel(testLabels);
+fprintf('Accuracy: %.2f%%\n', accuracy * 100);
